@@ -1,8 +1,8 @@
 import torch
 
 #dataset
-Image_DIR='path/to/image/'
-Annotation_File='path/to/annotationfile' #in csv
+Image_DIR='./data/images' #'path/to/image/'
+Annotation_File='./data/captions.txt' #'path/to/annotationfile' #in csv
 
 
 #model

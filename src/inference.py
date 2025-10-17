@@ -20,18 +20,18 @@ def inference():
         root_folder=cfg.Image_DIR,
         annotation_file=cfg.Annotation_File,
         transform = inference_transform,
-        batch_size=cfg.BATCH_SIZE,
-        num_workers=2,
+        batch_size=1,
+        num_workers=1,
         split_ratio=cfg.SPLIT_RATIO,
         )
     
-    model = CNNtoRNN(cfg.EMBED_SIZE,cfg.HIDDEN_SIZE,cfg.VOCAB_SIZE,cfg.NUM_LAYERS).to(cfg.DEVICE)
-    model.load_state_dict(torch.load("final_model.pth"))
+    model = CNNtoRNN(cfg.EMBED_SIZE,cfg.HIDDEN_SIZE,len(dataset.vocab),cfg.NUM_LAYERS).to(cfg.DEVICE)
+    model.load_state_dict(torch.load("./notebook/model/final_model.pth",map_location=cfg.DEVICE))
     model.eval()
 
     image_path = input("enter image path: ").strip()
     if image_path and os.path.exists(image_path):
-        image = Image.open(image_path).conver("RGB")
+        image = Image.open(image_path).convert("RGB")
         image_tensor = inference_transform(image).unsqueeze(0).to(cfg.DEVICE)
 
         with torch.no_grad():
