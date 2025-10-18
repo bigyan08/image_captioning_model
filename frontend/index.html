@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Captioning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 50px 40px;
+        }
+        
+        .upload-section {
+            border: 3px dashed #e0e6ed;
+            border-radius: 15px;
+            padding: 50px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .upload-section:hover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+            transform: translateY(-2px);
+        }
+        
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            transform: scale(1.02);
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .upload-text h3 {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .upload-text p {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            font-size: 1.1em;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 35px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+        }
+        
+        .upload-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .image-preview {
+            margin: 30px 0;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        .preview-img {
+            max-width: 100%;
+            max-height: 450px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border: 5px solid #f8f9fa;
+        }
+        
+        .image-info {
+            margin-top: 15px;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .generate-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 18px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+            margin-top: 20px;
+        }
+        
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(40, 167, 69, 0.4);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .result-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            border-left: 5px solid #667eea;
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        .result-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .caption {
+            font-size: 1.3em;
+            color: #34495e;
+            line-height: 1.6;
+            text-align: center;
+            font-style: italic;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 2px solid #e9ecef;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 25px;
+        }
+        
+        .loading p {
+            font-size: 1.2em;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+            text-align: center;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .error {
+            background: linear-gradient(135deg, #ffe6e6 0%, #ffcccb 100%);
+            color: #d63031;
+            border: 1px solid #fab1a0;
+        }
+        
+        .success {
+            background: linear-gradient(135deg, #e6ffe6 0%, #ccffcc 100%);
+            color: #00b894;
+            border: 1px solid #55efc4;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            color: #6c757d;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .new-upload-btn {
+            background: linear-gradient(45deg, #6c5ce7, #a29bfe);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .new-upload-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .upload-section {
+                padding: 30px 15px;
+            }
+            
+            .preview-img {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖼️ AI Image Captioning</h1>
+            <p>Upload an image and get AI-generated captions instantly powered by deep learning!</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
+                <div id="uploadText">
+                    <div class="upload-icon">📤</div>
+                    <div class="upload-text">
+                        <h3>Click here to upload an image</h3>
+                        <p>Or drag and drop an image file (JPG, PNG, GIF, WebP)</p>
+                        <button class="upload-btn" type="button">Choose File</button>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*">
+            </div>
+            
+            <div class="image-preview" id="imagePreview" style="display: none;">
+                <img id="previewImg" class="preview-img" alt="Preview">
+                <div class="image-info" id="imageInfo"></div>
+                <div class="generate-section">
+                    <button class="generate-btn" id="generateBtn" onclick="generateCaption()">
+                        🤖 Generate Caption
+                    </button>
+                    <br>
+                    <button class="new-upload-btn" onclick="resetUpload()">
+                        🔄 Upload New Image
+                    </button>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>🤖 AI is analyzing your image and generating caption...</p>
+            </div>
+            
+            <div class="result-section" id="result" style="display: none;">
+                <h3>📝 Generated Caption:</h3>
+                <div class="caption" id="caption"></div>
+            </div>
+            
+            <div id="message"></div>
+        </div>
+        
+        <div class="footer">
+            <p>Built with ❤️ using FastAPI and Deep Learning • Powered by CNN-LSTM Architecture</p>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const imageInfo = document.getElementById('imageInfo');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const caption = document.getElementById('caption');
+        const message = document.getElementById('message');
+        const generateBtn = document.getElementById('generateBtn');
+
+        let currentFile = null;
+
+        // File input change handler
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop handlers
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showMessage('❌ Please select a valid image file (JPG, PNG, GIF, WebP).', 'error');
+                return;
+            }
+
+            // Check file size (optional - max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showMessage('❌ File size too large. Please select an image under 10MB.', 'error');
+                return;
+            }
+
+            currentFile = file;
+
+            // Show image preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                
+                // Create a temporary image to get dimensions
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                    imageInfo.innerHTML = `
+                        <strong>File:</strong> ${file.name} • 
+                        <strong>Size:</strong> ${fileSize} MB • 
+                        <strong>Dimensions:</strong> ${tempImg.width} × ${tempImg.height}px
+                    `;
+                };
+                tempImg.src = e.target.result;
+                
+                uploadSection.style.display = 'none';
+                imagePreview.style.display = 'block';
+                result.style.display = 'none';
+                message.innerHTML = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function generateCaption() {
+            if (!currentFile) {
+                showMessage('❌ Please select an image first.', 'error');
+                return;
+            }
+
+            // Show loading
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            message.innerHTML = '';
+            generateBtn.disabled = true;
+
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            try {
+                // Send request to API
+                const response = await fetch('http://localhost:8000/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    throw new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Hide loading and show result
+                loading.style.display = 'none';
+                caption.textContent = data.caption || 'No caption generated';
+                result.style.display = 'block';
+                showMessage('✅ Caption generated successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error:', error);
+                loading.style.display = 'none';
+                
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showMessage('❌ Could not connect to the API server. Please make sure the server is running on http://localhost:8000', 'error');
+                } else {
+                    showMessage(`❌ Error generating caption: ${error.message}`, 'error');
+                }
+            } finally {
+                generateBtn.disabled = false;
+            }
+        }
+
+        function resetUpload() {
+            currentFile = null;
+            uploadSection.style.display = 'block';
+            imagePreview.style.display = 'none';
+            result.style.display = 'none';
+            message.innerHTML = '';
+            fileInput.value = '';
+        }
+
+        function showMessage(text, type) {
+            message.innerHTML = `<div class="message ${type}">${text}</div>`;
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    message.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'o') {
+                e.preventDefault();
+                fileInput.click();
+            }
+            if (e.key === 'Enter' && currentFile && !generateBtn.disabled) {
+                generateCaption();
+            }
+            if (e.key === 'Escape') {
+                resetUpload();
+            }
+        });
+
+        // Show loading animation on page load
+        window.addEventListener('load', () => {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 0.3s ease-in';
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+    </script>
+</body>
+</html>

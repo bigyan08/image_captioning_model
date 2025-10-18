@@ -1,6 +1,6 @@
 __pycache__/
 .venv/
 data/Images
-notebook/model
+notebook/models
 notebook/checkpoints
 notebook/runs
