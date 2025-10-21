@@ -56,6 +56,11 @@ def train():
         )
         for batch_idx, (imgs, captions) in loop:
             imgs, captions = imgs.to(cfg.DEVICE), captions.to(cfg.DEVICE)
+            captions_in = captions[:-1, :]      # remove last token
+            captions_target = captions[1:, :]   # remove first token
+        
+            outputs = model(imgs, captions_in)
+            outputs = outputs[49:]  # remove 49 image-region outputs
             outputs = model(imgs, captions[:-1])
             loss = criterion(outputs.reshape(-1, outputs.shape[2]), captions.reshape(-1))
     

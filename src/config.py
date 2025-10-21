@@ -11,12 +11,12 @@ LOAD_MODEL = False
 SAVE_MODEL = True
 TRAIN_CNN = False #set this true to train all the params of the ResNet model
 
-EMBED_SIZE = 256
-HIDDEN_SIZE = 256
-NUM_LAYERS = 1
+EMBED_SIZE = 512
+HIDDEN_SIZE = 512
+NUM_LAYERS = 2
 LEARNING_RATE = 3e-4
 NUM_EPOCHS =10
-BATCH_SIZE=32
+BATCH_SIZE=16
 NUM_WORKERS=8
 SPLIT_RATIO=0.8 #traindata percentage
 

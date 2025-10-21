@@ -4,3 +4,4 @@ data/Images
 notebook/models
 notebook/checkpoints
 notebook/runs
+.env

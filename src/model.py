@@ -3,40 +3,55 @@ import torch.nn as nn
 from torchvision.models import resnet50,ResNet50_Weights
 
 class EncoderCNN(nn.Module):
-    def __init__(self,embed_size,train_CNN=False):
-        super(EncoderCNN,self).__init__()
+    def __init__(self, embed_size, train_CNN=False):
+        super(EncoderCNN, self).__init__()
+        resnet = resnet50(weights=ResNet50_Weights.DEFAULT)
+        modules = list(resnet.children())[:-2]  # keep conv features, drop avgpool + fc
         self.train_CNN = train_CNN
-        self.resnet = resnet50(weights=ResNet50_Weights.DEFAULT)
-        self.resnet.fc = nn.Linear(self.resnet.fc.in_features,embed_size) #removing the classifier layer, then preserving the features in embed_size size.
+        self.resnet = nn.Sequential(*modules)
+
+        self.conv2embed = nn.Conv2d(2048, embed_size, kernel_size=1)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.2)
-        for name,param in self.resnet.named_parameters():
-            param.requires_grad = (train_CNN or 'fc' in name)
 
-    def forward(self,images):
-        features = self.resnet(images)
-        return self.dropout(self.relu(features))
+        for name, param in self.resnet.named_parameters():
+            param.requires_grad = train_CNN
+
+    def forward(self, images):
+        # Extract conv feature map: [B, 2048, 7, 7]
+        if not self.train_CNN:
+            with torch.no_grad():
+                features = self.resnet(images)
+        else:
+            features = self.resnet(images)
+        # Project to embed size and flatten spatially
+        features = self.conv2embed(features)        # [B, embed_size, 7, 7]
+        features = features.flatten(2)              # [B, embed_size, 49]
+        features = features.permute(0, 2, 1)        # [B, 49, embed_size]
+        features = self.dropout(self.relu(features))
+        return features
 
 class DecoderRNN(nn.Module):
-    def __init__(self,embed_size,hidden_size,vocab_size,num_layers):
-        super(DecoderRNN,self).__init__()
-        self.embed = nn.Embedding(vocab_size,embed_size)
-        self.lstm = nn.LSTM(embed_size,hidden_size,num_layers)
-        self.linear = nn.Linear(hidden_size,vocab_size)
+    def __init__(self, embed_size, hidden_size, vocab_size, num_layers):
+        super(DecoderRNN, self).__init__()
+        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers)
+        self.linear = nn.Linear(hidden_size, vocab_size)
         self.dropout = nn.Dropout(0.2)
 
-    def forward(self,features,captions):
-        '''
-        Adds a sequence dimension to the features (dim0)[1,batch_size,embed_size] and then concatenates along dim0.
-        First timestep gives image feature, Next timestep gives caption embeddings.
-        Final shape becomes:[1+seq_len,batch_size,embed_size]
-        '''
-        embeddings = self.dropout(self.embed(captions))
-        embeddings = torch.cat((features.unsqueeze(0),embeddings),dim=0)
-        hiddens,_ = self.lstm(embeddings)
+    def forward(self, features, captions):
+        # features: [B, 49, embed_size]
+        # captions: [seq_len, B]
+        features = features.permute(1, 0, 2)  # [49, B, embed_size]
+        embeddings = self.dropout(self.embed(captions))  # [seq_len, B, embed_size]
+
+        lstm_input = torch.cat((features, embeddings), dim=0)  # [49+seq_len, B, embed_size]
+        hiddens, _ = self.lstm(lstm_input)
         outputs = self.linear(hiddens)
         return outputs
+    
 
+                
 class CNNtoRNN(nn.Module):
     def __init__(self,embed_size,hidden_size,vocab_size,num_layers):
         super(CNNtoRNN,self).__init__()
@@ -48,7 +63,7 @@ class CNNtoRNN(nn.Module):
         outputs = self.RNN(features,captions)
         return outputs
         
-    def caption_image(self,image,vocabulary,max_len=50):
+    def caption_image(self, image, vocabulary, max_len=50):
         '''
         During inference or evaluation we wont have target captions(which is going to be predicted,duh!).
         image: inference image
@@ -57,17 +72,31 @@ class CNNtoRNN(nn.Module):
         '''
         caption_result = []
         with torch.no_grad():
-            x = self.CNN(image).unsqueeze(0) # add batch dimension at dim0
-            states = None
+            # Get CNN features
+            features = self.CNN(image)  # [B, 49, embed_size]
+            
+            # Start with <SOS> token
+            caption_so_far = [vocabulary.stoi['<SOS>']]
+            
             for _ in range(max_len):
-                hiddens,states = self.RNN.lstm(x,states)
-                output = self.RNN.linear(hiddens.squeeze(0))
-                predicted = output.argmax(1)
+                # Convert current caption to tensor
+                captions_tensor = torch.tensor([caption_so_far]).to(image.device)  # [1, len(caption_so_far)]
+                captions_tensor = captions_tensor.permute(1, 0)  # [len(caption_so_far), 1] - match training format
                 
-                caption_result.append(predicted.item())
-                x = self.RNN.embed(predicted).unsqueeze(0)
-                if vocabulary.itos[predicted.item()] == '<EOS>':
+                # Use the model's forward pass - same as training
+                outputs = self.RNN(features, captions_tensor)  # [49+len(caption_so_far), 1, vocab_size]
+                
+                # Skip the first 49 outputs (image features) - same as training
+                text_outputs = outputs[49:, :, :]  # [len(caption_so_far), 1, vocab_size]
+                
+                # Get prediction for the last text token
+                predicted = text_outputs[-1, 0, :].argmax(0)  # Get last prediction
+                predicted_idx = predicted.item()
+                
+                caption_result.append(predicted_idx)
+                caption_so_far.append(predicted_idx)
+                
+                if vocabulary.itos[predicted_idx] == '<EOS>':
                     break
 
         return [vocabulary.itos[idx] for idx in caption_result]
-                

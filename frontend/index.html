@@ -451,7 +451,7 @@
 
             try {
                 // Send request to API
-                const response = await fetch('http://localhost:8000/predict', {
+                const response = await fetch('/predict', {//'https://image-captioning.azurewebsites.net'
                     method: 'POST',
                     body: formData
                 });
@@ -474,7 +474,7 @@
                 loading.style.display = 'none';
                 
                 if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    showMessage('❌ Could not connect to the API server. Please make sure the server is running on http://localhost:8000', 'error');
+                    showMessage('❌ Could not connect to the API server. Please make sure the server is running.', 'error');
                 } else {
                     showMessage(`❌ Error generating caption: ${error.message}`, 'error');
                 }

@@ -1,0 +1,16 @@
+__pycache__/
+*.pth
+*.pkl
+*.pt
+*.zip
+*.tar
+*.gz
+*.h5
+*.onnx
+notebook/models/
+venv/
+.env
+*.log
+.git/
+.gitignore
+*.ipynb
